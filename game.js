@@ -1,4 +1,4 @@
-const HERO_ATLAS = { "cellW": 87, "cellH": 93, "anims": { "idle_down": [[0, 0, 87, 93], [87, 0, 87, 93], [174, 0, 87, 93], [261, 0, 87, 93]], "walk_down": [[0, 93, 87, 93], [87, 93, 87, 93], [174, 93, 87, 93], [261, 93, 87, 93]], "run_down": [[0, 186, 87, 93], [87, 186, 87, 93], [174, 186, 87, 93], [261, 186, 87, 93]], "attack_down": [[0, 279, 87, 93], [87, 279, 87, 93], [174, 279, 87, 93], [261, 279, 87, 93]], "guard_down": [[0, 372, 87, 93], [87, 372, 87, 93], [174, 372, 87, 93], [261, 372, 87, 93]], "hit_down": [[0, 465, 87, 93], [87, 465, 87, 93], [174, 465, 87, 93], [261, 465, 87, 93]], "death_down": [[0, 558, 87, 93], [87, 558, 87, 93], [174, 558, 87, 93], [261, 558, 87, 93], [348, 558, 87, 93], [435, 558, 87, 93]], "skill_down": [[0, 651, 87, 93], [87, 651, 87, 93], [174, 651, 87, 93], [261, 651, 87, 93]], "idle_up": [[0, 744, 87, 93], [87, 744, 87, 93], [174, 744, 87, 93], [261, 744, 87, 93]], "walk_up": [[0, 837, 87, 93], [87, 837, 87, 93], [174, 837, 87, 93], [261, 837, 87, 93]], "run_up": [[0, 930, 87, 93], [87, 930, 87, 93], [174, 930, 87, 93], [261, 930, 87, 93]], "attack_up": [[0, 1023, 87, 93], [87, 1023, 87, 93], [174, 1023, 87, 93], [261, 1023, 87, 93]], "guard_up": [[0, 1116, 87, 93], [87, 1116, 87, 93], [174, 1116, 87, 93], [261, 1116, 87, 93]], "hit_up": [[0, 1209, 87, 93], [87, 1209, 87, 93], [174, 1209, 87, 93], [261, 1209, 87, 93]], "death_up": [[0, 1302, 87, 93], [87, 1302, 87, 93], [174, 1302, 87, 93], [261, 1302, 87, 93], [348, 1302, 87, 93], [435, 1302, 87, 93]], "skill_up": [[0, 1395, 87, 93], [87, 1395, 87, 93], [174, 1395, 87, 93], [261, 1395, 87, 93]], "idle_right": [[0, 1488, 87, 93], [87, 1488, 87, 93], [174, 1488, 87, 93]], "walk_right": [[0, 1581, 87, 93], [87, 1581, 87, 93], [174, 1581, 87, 93], [261, 1581, 87, 93]], "run_right": [[0, 1674, 87, 93], [87, 1674, 87, 93], [174, 1674, 87, 93], [261, 1674, 87, 93]], "attack_right": [[0, 1767, 87, 93], [87, 1767, 87, 93], [174, 1767, 87, 93], [261, 1767, 87, 93]], "guard_right": [[0, 1860, 87, 93], [87, 1860, 87, 93], [174, 1860, 87, 93], [261, 1860, 87, 93]], "hit_right": [[0, 1953, 87, 93], [87, 1953, 87, 93], [174, 1953, 87, 93], [261, 1953, 87, 93]], "death_right": [[0, 2046, 87, 93], [87, 2046, 87, 93], [174, 2046, 87, 93], [261, 2046, 87, 93], [348, 2046, 87, 93], [435, 2046, 87, 93]], "skill_right": [[0, 2139, 87, 93], [87, 2139, 87, 93], [174, 2139, 87, 93], [261, 2139, 87, 93], [348, 2139, 87, 93], [435, 2139, 87, 93], [522, 2139, 87, 93]] } };
+const HERO_ATLAS = {"cellW":87,"cellH":93,"anims":{"idle_right":[[0,0,87,93],[87,0,87,93],[174,0,87,93]],"walk_right":[[0,93,87,93],[87,93,87,93],[174,93,87,93],[261,93,87,93]],"run_right":[[0,186,87,93],[87,186,87,93],[174,186,87,93],[261,186,87,93]],"attack_right":[[0,279,87,93],[87,279,87,93],[174,279,87,93],[261,279,87,93]],"guard_right":[[0,372,87,93],[87,372,87,93],[174,372,87,93],[261,372,87,93]],"hit_right":[[0,465,87,93],[87,465,87,93],[174,465,87,93],[261,465,87,93]],"death_right":[[0,558,87,93],[87,558,87,93],[174,558,87,93],[261,558,87,93],[348,558,87,93],[435,558,87,93]],"skill_right":[[0,651,87,93],[87,651,87,93],[174,651,87,93],[261,651,87,93],[348,651,87,93],[435,651,87,93],[522,651,87,93]]}}; // 게임은 오른쪽 방향만 사용 → 시트도 오른쪽 8줄만 남김
 const HERO_ATLAS_URI = 'assets/hero_atlas.png';
 // ===== 게임 데이터 테이블 =====
 const SAVE_KEY = 'PIXEL_DUNGEON_VIBE_SAVE_V7';
@@ -1232,7 +1232,7 @@ function drawForgeBackdrop(cv) {
 }
 
 // ===== 주인공: 제공된 스프라이트 시트에서 잘라낸 아틀라스로 애니메이션 =====
-// HERO_ATLAS = { cellW, cellH, anims: { 'idle_right': [[x,y,w,h],...], ... } }, HERO_ATLAS_URI = PNG data URI (빌드 시 주입)
+// HERO_ATLAS = { cellW, cellH, anims: { 'idle_right': [[x,y,w,h],...], ... } }, HERO_ATLAS_URI = 스프라이트 시트 PNG 경로 (assets/hero_atlas.png)
 const heroImg = new Image();
 let heroReady = false;
 const heroViews = new Set();
@@ -1273,10 +1273,10 @@ class HeroView {
     if (f !== before) this.draw();
   }
   draw() {
-    const w = HERO_ATLAS.cellW || 87, h = HERO_ATLAS.cellH || 93;
     if (!heroReady) {
-      this.ctx.clearRect(0, 0, w, h);
-      drawFallbackHero(this.ctx, w, h, this.dir, this.anim, this.t);
+      const cw = HERO_ATLAS.cellW || 87, ch = HERO_ATLAS.cellH || 93;
+      this.ctx.clearRect(0, 0, cw, ch);
+      drawFallbackHero(this.ctx, cw, ch, this.dir, this.anim, this.t);
       return;
     }
     const fr = this.frames(), n = fr.length;
@@ -1445,7 +1445,11 @@ const FX = {
     const mod = PFXLib.FX[name]; if (!mod) return console.warn('fx missing', name);
     const fx = PFXLib.createFx(mod, { seed: (Math.random() * 1e6) | 0, ...opts });
     this.live.push({ id, fx, speed, cut, delay, t: 0, move });
+    this.wake();
   },
+  // 이펙트가 없으면 루프를 멈췄다가, 새 이펙트가 생기면 다시 시작 (유휴 시 CPU/배터리 절약)
+  running: false,
+  wake() { if (this.running) return; this.running = true; this.last = 0; requestAnimationFrame(t => this.tick(t)); },
   clearAll() { this.live = []; },
   async hitStop(ms) { if (ms <= 0) return; this.frozenUntil = performance.now() + ms; await new Promise(r => setTimeout(r, ms)); },
   shake(elId, dur = 160, amp = 6) {
@@ -1482,10 +1486,12 @@ const FX = {
       s.dirty = true;
     }
     this.live = this.live.filter(e => e.delay > 0 || !e.fx.done());
+    // 남은 이펙트가 없으면 한 프레임 더 돌려 캔버스를 지운 뒤 잠듦
+    if (!this.live.length && !Object.values(this.surf).some(s => s.dirty)) { this.running = false; return; }
     requestAnimationFrame(t => this.tick(t));
   },
 };
-requestAnimationFrame(t => FX.tick(t));
+FX.wake();
 
 // ===== 전투 연출 =====
 const BFX = 'battle-fx-canvas';

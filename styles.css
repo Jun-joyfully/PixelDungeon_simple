@@ -304,11 +304,38 @@ button, select, input { font-family: var(--font); color: var(--text); }
 .res-btns { display: flex; gap: 8px; }
 .res-btns .btn { flex: 1; }
 
+/* ===== 전체 화면 (모든 해상도에서 창을 꽉 채움) ===== */
+html, body { height: 100%; }
+body { padding: 0; overflow: hidden; min-height: 0; }
+#game-app { max-width: none; width: 100vw; height: 100vh; height: 100dvh; min-height: 0; border-width: 0; box-shadow: none; }
+.scene.active { min-height: 0; overflow-y: auto; }
+#scene-title, #scene-battle { min-height: 0; }
+/* 전투: 전투 공간이 남는 높이를 모두 차지, 배경은 바닥 기준으로 맞춤 */
+.arena { flex: 1 1 auto; height: auto; min-height: 220px; }
+.arena .bg { object-position: 50% 100%; }
+.b-hud, .dock, .b-log { flex: none; }
+.log-box { height: clamp(90px, 16vh, 220px); }
+/* 대장간 */
+.forge-body { flex: 1 0 auto; }
+.altar { min-height: clamp(360px, 62vh, 900px); }
+/* 큰 화면: 글자·캐릭터를 화면 크기에 비례해서 키움 (모바일 값은 아래 미디어쿼리가 담당) */
+@media (min-width: 769px) {
+  html { font-size: clamp(16px, calc(10px + .42vw), 20px); }
+  .actor.hero canvas { height: clamp(136px, 22vh, 300px); }
+  .actor.enemy canvas { width: clamp(128px, 20vh, 280px); height: clamp(128px, 20vh, 280px); }
+  .actor.enemy.boss canvas { width: clamp(192px, 30vh, 420px); height: clamp(192px, 30vh, 420px); }
+  .actor { bottom: clamp(22px, 4vh, 60px); }
+  .pedestal { height: clamp(210px, 30vh, 380px); } .pedestal canvas { height: clamp(180px, 26vh, 340px); }
+  /* 옆 패널 폭도 화면에 맞춰 넓힘 (글자가 커져도 줄바꿈 방지) */
+  .menu-body { grid-template-columns: clamp(310px, 21vw, 460px) 1fr; }
+  .forge-body { grid-template-columns: 1fr clamp(280px, 25vw, 480px); }
+  .char-body { grid-template-columns: clamp(240px, 21vw, 420px) 1fr; }
+}
+
 /* ===== 반응형 ===== */
 @media (max-width: 768px) {
   html { font-size: 16px; }
   body { padding: 0; }
-  #game-app { min-height: 100vh; border-width: 0; box-shadow: none; }
   .menu-body, .forge-body, .char-body { grid-template-columns: 1fr; padding: 10px; gap: 12px; }
   .dock { grid-template-columns: repeat(5, 1fr); padding: 6px; gap: 4px; }
   .arena { height: 260px; }
