@@ -1,5 +1,5 @@
-﻿const HERO_ATLAS = {"cellW":87,"cellH":93,"anims":{"idle_right":[[0,0,87,93],[87,0,87,93],[174,0,87,93]],"walk_right":[[0,93,87,93],[87,93,87,93],[174,93,87,93],[261,93,87,93]],"run_right":[[0,186,87,93],[87,186,87,93],[174,186,87,93],[261,186,87,93]],"attack_right":[[0,279,87,93],[87,279,87,93],[174,279,87,93],[261,279,87,93]],"guard_right":[[0,372,87,93],[87,372,87,93],[174,372,87,93],[261,372,87,93]],"hit_right":[[0,465,87,93],[87,465,87,93],[174,465,87,93],[261,465,87,93]],"death_right":[[0,558,87,93],[87,558,87,93],[174,558,87,93],[261,558,87,93],[348,558,87,93],[435,558,87,93]],"skill_right":[[0,651,87,93],[87,651,87,93],[174,651,87,93],[261,651,87,93],[348,651,87,93],[435,651,87,93],[522,651,87,93]]}}; // 게임은 오른쪽 방향만 사용 → 시트도 오른쪽 8줄만 남김
-const HERO_ATLAS_URL = 'assets/hero_atlas.png'; // 영웅 스프라이트 시트 (별도 파일로 분리: 캐시 가능)
+const HERO_ATLAS = {"cellW":87,"cellH":93,"anims":{"idle_right":[[0,0,87,93],[87,0,87,93],[174,0,87,93]],"walk_right":[[0,93,87,93],[87,93,87,93],[174,93,87,93],[261,93,87,93]],"run_right":[[0,186,87,93],[87,186,87,93],[174,186,87,93],[261,186,87,93]],"attack_right":[[0,279,87,93],[87,279,87,93],[174,279,87,93],[261,279,87,93]],"guard_right":[[0,372,87,93],[87,372,87,93],[174,372,87,93],[261,372,87,93]],"hit_right":[[0,465,87,93],[87,465,87,93],[174,465,87,93],[261,465,87,93]],"death_right":[[0,558,87,93],[87,558,87,93],[174,558,87,93],[261,558,87,93],[348,558,87,93],[435,558,87,93]],"skill_right":[[0,651,87,93],[87,651,87,93],[174,651,87,93],[261,651,87,93],[348,651,87,93],[435,651,87,93],[522,651,87,93]]}}; // 게임은 오른쪽 방향만 사용 → 시트도 오른쪽 8줄만 남김
+const HERO_ATLAS_URI = 'assets/hero_atlas.png';
 // ===== 게임 데이터 테이블 =====
 const SAVE_KEY = 'PIXEL_DUNGEON_VIBE_SAVE_V7';
 const GRADES = ['일반', '희귀', '영웅', '전설', '신화'];
@@ -712,7 +712,7 @@ function enhanceTry(kind) {
   let gain = 0;
   withHpDelta(() => {
     if (ok) { stepUp(e); e.pityBonus = 0; }
-    else { gain = r1(Math.max(1.5, (100 - info.final) * 0.14)); e.pityBonus = Math.min(100, r1(e.pityBonus + gain)); }
+    else { gain = r1(Math.max(3.0, (100 - info.final) * 0.22)); e.pityBonus = Math.min(100, r1(e.pityBonus + gain)); }
   });
   save();
   return { ok, cost: info.cost, gain, pity: e.pityBonus, status: enhanceStatus(e) };
@@ -1232,12 +1232,17 @@ function drawForgeBackdrop(cv) {
 }
 
 // ===== 주인공: 제공된 스프라이트 시트에서 잘라낸 아틀라스로 애니메이션 =====
-// HERO_ATLAS = { cellW, cellH, anims: { 'idle_right': [[x,y,w,h],...], ... } }, HERO_ATLAS_URL = 스프라이트 시트 PNG 경로 (assets/hero_atlas.png)
+// HERO_ATLAS = { cellW, cellH, anims: { 'idle_right': [[x,y,w,h],...], ... } }, HERO_ATLAS_URI = 스프라이트 시트 PNG 경로 (assets/hero_atlas.png)
 const heroImg = new Image();
 let heroReady = false;
 const heroViews = new Set();
 heroImg.onload = () => { heroReady = true; heroViews.forEach(v => v.draw()); };
-heroImg.src = HERO_ATLAS_URL;
+heroImg.onerror = () => {
+  console.warn('[hero] 아틀라스 이미지(assets/hero_atlas.png) 로드 지연 또는 실패: 절차적 픽셀 도트 렌더러로 안전 전환됩니다.');
+  heroReady = false;
+  heroViews.forEach(v => v.draw());
+};
+heroImg.src = HERO_ATLAS_URI;
 
 const HERO_FPS = { idle: 5, walk: 8, run: 12, attack: 16, guard: 6, hit: 14, death: 8, skill: 16 };
 class HeroView {
@@ -1268,7 +1273,12 @@ class HeroView {
     if (f !== before) this.draw();
   }
   draw() {
-    if (!heroReady) return;
+    const w = HERO_ATLAS.cellW || 87, h = HERO_ATLAS.cellH || 93;
+    if (!heroReady) {
+      this.ctx.clearRect(0, 0, w, h);
+      drawFallbackHero(this.ctx, w, h, this.dir, this.anim, this.t);
+      return;
+    }
     const fr = this.frames(), n = fr.length;
     let i = Math.floor(this.t * HERO_FPS[this.anim]);
     i = this.loop ? i % n : Math.min(n - 1, i);
@@ -1336,6 +1346,53 @@ function heroTick(now) {
   requestAnimationFrame(heroTick);
 }
 requestAnimationFrame(heroTick);
+// 이모트 아이콘(시트의 기타 칸): 'icons' 0=얼굴 1=검 2=방패 3=망토 4=물약
+function drawFallbackHero(ctx, w, h, dir, anim, t) {
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
+  const bob = anim === 'run' ? Math.sin(t * 16) * 3 : (anim === 'walk' ? Math.sin(t * 10) * 2 : Math.sin(t * 4) * 1);
+  const flip = dir === 'left' ? -1 : 1;
+  ctx.translate(cx, cy + bob);
+  ctx.scale(flip, 1);
+  
+  // 망토 (어두운 보라/갈색)
+  ctx.fillStyle = '#2d1b36';
+  ctx.fillRect(-14, -6, 28, 30);
+  // 몸통 코트 (다크 브라운)
+  ctx.fillStyle = '#4a2d1d';
+  ctx.fillRect(-10, -4, 20, 22);
+  // 가죽 벨트 & 버클
+  ctx.fillStyle = '#1e130b'; ctx.fillRect(-10, 4, 20, 4);
+  ctx.fillStyle = '#f5b942'; ctx.fillRect(-3, 4, 6, 4);
+  // 후드 (어두운 보라)
+  ctx.fillStyle = '#3a2347';
+  ctx.fillRect(-12, -26, 24, 22);
+  // 얼굴 그림자 속 어둠
+  ctx.fillStyle = '#12081a';
+  ctx.fillRect(-8, -20, 16, 12);
+  // 빛나는 눈빛
+  ctx.fillStyle = '#fffa65';
+  ctx.fillRect(1, -16, 3, 2);
+  // 허리 숏소드
+  ctx.fillStyle = '#b2bec3';
+  ctx.fillRect(8, -2, 4, 18);
+  ctx.fillStyle = '#f5b942';
+  ctx.fillRect(6, -4, 8, 3);
+  // 발/부츠
+  ctx.fillStyle = '#22150d';
+  ctx.fillRect(-9, 18, 7, 7);
+  ctx.fillRect(2, 18, 7, 7);
+  ctx.restore();
+}
+
+function drawSheetIcon(cv, idx) {
+  const go = () => {
+    if (!HERO_ATLAS.anims?.icons?.[idx]) return; const [x, y, w, h] = HERO_ATLAS.anims.icons[idx];
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(heroImg, x, y, w, h, 0, 0, w, h);
+  };
+  heroReady ? go() : heroImg.addEventListener('load', go, { once: true });
+}
 
 // ===== pixelfx 연동: 캔버스 해상도를 화면 크기에 맞추고, 실제 DOM 위치를 이펙트 좌표로 변환 =====
 const PAL = {
@@ -1578,7 +1635,12 @@ const isOpen = (id) => $('m-' + id)?.classList.contains('open');
 
 // ----- 장면 -----
 function switchScene(id) {
-  if (id !== 'scene-battle') { clearAuto(); S.battle.inBattle = false; }
+  if (id !== 'scene-battle') {
+    clearAuto();
+    S.battle.inBattle = false;
+    if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none';
+    if (heroBattle) heroBattle.idle();
+  }
   document.querySelectorAll('.scene').forEach(s => s.classList.toggle('active', s.id === id));
   $('top-bar').classList.toggle('hidden', id === 'scene-title');
   refreshAll();
@@ -1630,7 +1692,7 @@ function renderMenu(st) {
   $('mod-btn').textContent = `🧩 모드 (${PD.mods.length})`;
   const s = S.stage, k = stageKind(s), m = Math.floor(s / 50);
   const desc = { b50: '🔥 [50층 심연 대군주 보스전!]', boss: '👑 [보스전 출현!]', elite: '⭐ [엘리트 정예 + 일반 룬 드랍!]', normal: '일반 던전 탐험' }[k];
-  const sub = `Stage ${s} - ${desc}${s >= 50 ? ` · 심연각성 Lv.${m}` : ''}${s < S.maxStage ? ' · 🔁 반복사냥 (골드 35%)' : ''}`;
+  const sub = `Stage ${s} - ${desc}${s >= 50 ? ` · 심연각성 Lv.${m}` : ''}${s < S.maxStage ? ' · 🔁 반복사냥 (골드 80%)' : ''}`;
   const lv = S.chestLevel, cl = CHEST_LV[lv], rates = cl.r.map((v, i) => `<span style="color:${gcol(GRADES[i])}">${GRADES[i]} ${v.toFixed(1)}%</span>`).join(' · ');
   const expTxt = lv >= 10 ? 'EXP: MAX (최고 등급 달성!)' : `EXP: ${S.chestExp} / ${cl.req} (상자 1회당 +1)`;
   const chestRow = (n, title, color, type, sub2) => `<div class="chest-row wide"><div class="hd"><span class="num" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#0b0d13;border:2px solid var(--iron);color:var(--gold);font-size:.8rem">${n}</span><div class="tx"><b style="color:${color}">${title}</b><small>${sub2}</small></div></div>
@@ -2293,7 +2355,10 @@ function startRaidBattle(bossId) {
   if (S.hero.keys < b.keyReq) return alert(`소환 열쇠가 부족합니다! (필요: 🗝️${b.keyReq}개 / 현재 보유: 🗝️${S.hero.keys}개)`);
   S.hero.keys -= b.keyReq;
   closeModal('raid');
-  clearAuto();
+  battleSeq++; clearAuto(); FX.clearAll();
+  const rh = S.hero; rh.hp = stats().maxHp; rh.potionCooldown = 0; rh.skills.forEach(sk => sk.cooldown = 0);
+  S.repeatStage = null; save();
+  $('log-box').innerHTML = ''; heroBattle.idle();
   S.battle.inBattle = true;
   S.battle.isRaid = true;
   S.battle.raidTurnsLeft = 15;
@@ -2317,6 +2382,10 @@ function startRaidBattle(bossId) {
     bossArmor: `${b.name}의 각인`,
   };
   switchScene('scene-battle');
+
+  const ha = $('hero-actor');
+  if (ha) { ha.classList.remove('dead', 'hurt'); ha.style.opacity = ''; ha.style.transform = ''; }
+  heroBattle.idle();
 
   $('enemy-actor').classList.toggle('boss', true);
   $('enemy-actor').classList.remove('dead');
@@ -2487,6 +2556,9 @@ async function forgeAuto() {
 }
 
 // ===== 전투 =====
+// 전투 세션 번호: 귀환/재입장 시 올라가며, 이전 전투의 예약 타이머·await 후속 처리를 무효화한다.
+let battleSeq = 0;
+const later = (fn, ms) => { const id = battleSeq; setTimeout(() => { if (id === battleSeq) fn(); }, ms); };
 function clearAuto() { if (UI.autoTimer) clearTimeout(UI.autoTimer); UI.autoTimer = null; }
 function scheduleAuto() { clearAuto(); if (!S.hero.autoCast || S.battleSpeed === 'skip') return; UI.autoTimer = setTimeout(() => { UI.autoTimer = null; runAuto(); }, actionDelay()); }
 function log(text, cls = '') { const b = $('log-box'); b.insertAdjacentHTML('beforeend', `<div class="${cls}">${text}</div>`); while (b.children.length > 80) b.firstChild.remove(); b.scrollTop = b.scrollHeight; }
@@ -2504,13 +2576,14 @@ function lunge(heroSide) {
   setTimeout(() => { restartAnim(t, 'hurt'); if (!heroSide && S.battle.inBattle) heroBattle.play('hit'); }, 110);
 }
 function startBattle() {
-  clearAuto(); FX.clearAll();
+  battleSeq++; clearAuto(); FX.clearAll();
+  if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none';
   const h = S.hero, st = stats();
   h.hp = st.maxHp; h.potionCooldown = 0; h.skills.forEach(s => s.cooldown = 0);
   S.repeatStage = S.stage < S.maxStage ? S.stage : null;
   const mon = makeMonster(S.stage);
   PD.emit('battleStart', { monster: mon, stage: S.stage });
-  S.battle = { inBattle: true, monster: mon, turn: 1, isPlayerTurn: true };
+  S.battle = { inBattle: true, isRaid: false, raidTurnsLeft: 0, monster: mon, turn: 1, isPlayerTurn: true };
   unlockCodex('monsters', mon.type); if (mon.isElite) unlockCodex('monsters', 'elite');
   save();
   $('enemy-actor').classList.toggle('boss', mon.isBoss);
@@ -2518,19 +2591,31 @@ function startBattle() {
   drawBattleBackdrop($('battle-bg'), S.stage);
   drawMonster($('monster-battle-canvas'), mon.type, mon.isBoss);
   $('enemy-actor').classList.remove('dead'); $('enemy-actor').style.opacity = '';
-  // 등장: 왼쪽에서 달려 들어옴
-  const ha = $('hero-actor'); ha.style.transition = 'none'; ha.style.transform = 'translateX(-120px)';
-  heroBattle.play('run', { loop: true });
-  requestAnimationFrame(() => { ha.style.transition = 'transform .45s steps(6)'; ha.style.transform = ''; });
-  setTimeout(() => { if (S.battle.inBattle) { heroBattle.idle(); fxRunIn(); } ha.style.transition = ''; }, 460);
+
+  // 영웅 상태 리셋: 사망 모션 및 투명도 완전 해제
+  const ha = $('hero-actor');
+  if (ha) { ha.classList.remove('dead', 'hurt'); ha.style.opacity = ''; }
+  heroBattle.idle();
+
+  // 등장 연출
+  if (S.battleSpeed === 'skip') {
+    if (ha) { ha.style.transition = 'none'; ha.style.transform = ''; }
+    heroBattle.idle();
+  } else {
+    if (ha) { ha.style.transition = 'none'; ha.style.transform = 'translateX(-120px)'; }
+    heroBattle.play('run', { loop: true });
+    requestAnimationFrame(() => { if (ha) { ha.style.transition = 'transform .45s steps(6)'; ha.style.transform = ''; } });
+    setTimeout(() => { if (S.battle.inBattle) { heroBattle.idle(); fxRunIn(); } if (ha) ha.style.transition = ''; }, 460);
+  }
   $('log-box').innerHTML = '';
   const m = Math.floor(S.stage / 50);
-  log(`⚔️ Stage ${S.stage} 입장! 전방에 [${mon.name}] 출현!${S.stage >= 50 ? ` [🔥 심연 각성 ${m}단계]` : ''}${S.repeatStage ? ' [🔁 반복 파밍 모드: 골드 보상 35%]' : ''}`, 'info');
+  log(`⚔️ Stage ${S.stage} 입장! 전방에 [${mon.name}] 출현!${S.stage >= 50 ? ` [🔥 심연 각성 ${m}단계]` : ''}${S.repeatStage ? ' [🔁 반복 파밍 모드: 골드 보상 80%]' : ''}`, 'info');
   refreshAll();
   if (h.autoCast && S.battleSpeed !== 'skip') { clearAuto(); UI.autoTimer = setTimeout(() => { UI.autoTimer = null; runAuto(); }, Math.max(500, actionDelay())); }
 }
 function renderHud() {
   const h = S.hero, st = stats(), mon = S.battle.monster; if (!mon) return;
+  if ($('raid-timer-banner')) $('raid-timer-banner').style.display = (S.battle.inBattle && S.battle.isRaid) ? 'block' : 'none';
   $('b-hero-hp').textContent = `${fmt(h.hp)}/${fmt(st.maxHp)}`; $('b-hero-bar').style.width = (h.hp / st.maxHp * 100) + '%';
   $('b-mon-hp').textContent = `${fmt(mon.hp)}/${fmt(mon.maxHp)}`; $('b-mon-bar').style.width = (mon.hp / mon.maxHp * 100) + '%';
   $('b-mon-name').textContent = mon.name; $('b-mon-icon').textContent = mon.icon;
@@ -2555,7 +2640,7 @@ function renderDock() {
   $('dock').innerHTML = html;
 }
 function cycleSpeed() { S.battleSpeed = S.battleSpeed === 1 ? 2 : S.battleSpeed === 2 ? 'skip' : 1; save(); if (S.battleSpeed === 'skip') clearAuto(); else if (S.battle.isPlayerTurn) scheduleAuto(); refreshAll(); }
-function retreat() { if (confirm('전투를 중단하고 마을 광장으로 귀환하시겠습니까?')) { S.battle.inBattle = false; S.hero.hp = stats().maxHp; FX.clearAll(); switchScene('scene-menu'); } }
+function retreat() { if (confirm('전투를 중단하고 마을 광장으로 귀환하시겠습니까?')) { S.battle.inBattle = false; battleSeq++; clearAuto(); if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none'; if (heroBattle) heroBattle.idle(); S.hero.hp = stats().maxHp; FX.clearAll(); switchScene('scene-menu'); } }
 function nextFloor() { S.stage = S.maxStage; S.repeatStage = null; save(); startBattle(); }
 function runAuto() {
   if (!S.battle.inBattle || !S.battle.isPlayerTurn || !S.hero.autoCast || S.battleSpeed === 'skip') return;
@@ -2568,11 +2653,12 @@ function runAuto() {
 function beginPlayerAct() { if (!S.battle.inBattle || !S.battle.isPlayerTurn) return false; clearAuto(); S.battle.isPlayerTurn = false; renderDock(); return true; }
 async function playerAttack() {
   if (!beginPlayerAct()) return;
-  const mon = S.battle.monster, r = basicAttack(mon);
+  const bid = battleSeq, mon = S.battle.monster, r = basicAttack(mon);
   PD.emit('attack', { monster: mon, result: r });
   lunge(true); fxHeroSlash(S.hero.sword.grade, r.crit);
   mon.hp = Math.max(0, mon.hp - r.dmg);
   if (r.crit) { FX.shake('battle-viewport', 150, 7); await FX.hitStop(hs(75)); }
+  if (bid !== battleSeq) return;
   floatText(r.crit ? `CRIT -${fmt(r.dmg)}!` : `-${fmt(r.dmg)}`, false, r.crit ? '#fffa65' : '#ff9f43');
   log(r.crit ? `💥 치명타 베기! [${mon.name}]에게 ${fmt(r.dmg)} 피해!` : `🗡️ 모험가의 검격! [${mon.name}]에게 ${fmt(r.dmg)} 피해!`, r.crit ? 'crit' : 'hit');
   afterPlayer();
@@ -2580,11 +2666,12 @@ async function playerAttack() {
 async function playerSkill(i) {
   const sk = ownedSkill(S.hero.equippedSkills[i]); if (!sk || sk.cooldown > 0) return;
   if (!beginPlayerAct()) return;
-  const mon = S.battle.monster, r = castSkill(sk, mon);
+  const bid = battleSeq, mon = S.battle.monster, r = castSkill(sk, mon);
   PD.emit('skill', { skill: sk, monster: mon, result: r });
   lunge(true); heroBattle.play('skill'); fxSkill(sk, r.crit);
   mon.hp = Math.max(0, mon.hp - r.dmg);
   FX.shake('battle-viewport', 180, 7); await FX.hitStop(hs(70));
+  if (bid !== battleSeq) return;
   floatText(`${r.crit ? 'CRIT ' : ''}-${fmt(r.dmg)}!`, false, r.crit ? '#fffa65' : '#c56cf0');
   if (r.heal) floatText(`+${fmt(r.heal)} HP`, true, '#2ed573');
   log(`✨ ${sk.icon} [${sk.name} Lv.${sk.level}]${r.crit ? ' 치명타!' : ''} ${fmt(r.dmg)} 피해!${r.heal ? ` (흡혈 +${fmt(r.heal)})` : ''}${r.cdCut ? ' [쿨감!]' : ''}`, 'skill');
@@ -2598,78 +2685,53 @@ function playerPotion() {
   log(`🧪 회복 물약 복용! HP가 ${fmt(heal)} 회복되었습니다!`, 'win');
   afterPlayer();
 }
+// 🐾 펫 지원 스킬 데이터 (3턴마다 발동). dmg: 공격력 배율, healMax: 최대HP 비율, healDmg: 피해량 흡혈 비율, defCut: 적 방어력 감소 비율
+const PET_SUPPORT = {
+  slime:         { healMax: lv => 0.12 + lv * 0.005, color: '#2ed573', cls: 'win',   msg: (d, h) => `HP +${fmt(h)} 회복!` },
+  bat:           { dmg: lv => 1.2 + lv * 0.08, healDmg: 0.4, color: '#a55eea', cls: 'skill', msg: (d, h) => `${fmt(d)} 피해 및 +${fmt(h)} 흡혈!` },
+  baby_dragon:   { dmg: lv => 2.2 + lv * 0.12, color: '#ff7924', cls: 'skill', msg: (d) => `화염구로 ${fmt(d)} 폭발 피해!` },
+  frost_wolf:    { dmg: lv => 1.8 + lv * 0.10, defCut: 0.25, color: '#00cec9', cls: 'skill', msg: (d) => `${fmt(d)} 피해 및 적 방어력 25% 영구 감소!` },
+  thunder_beast: { dmg: lv => 2.8 + lv * 0.15, color: '#f5b942', cls: 'skill', msg: (d) => `벼락 강타로 ${fmt(d)} 감전 피해!` },
+  forest_fairy:  { healMax: lv => 0.20 + lv * 0.01, color: '#2ed573', cls: 'win',   msg: (d, h) => `생명의 결계로 HP +${fmt(h)} 회복!` },
+  phoenix:       { dmg: lv => 3.5 + lv * 0.20, healMax: () => 0.25, color: '#ff5e97', cls: 'win',   msg: (d, h) => `성광의 업화로 ${fmt(d)} 피해 및 HP +${fmt(h)} 회복!` },
+  cerberus:      { dmg: lv => 4.2 + lv * 0.25, color: '#ff4757', cls: 'crit',  msg: (d) => `방어 관통 3연격으로 ${fmt(d)} 암흑 참격 피해!` },
+};
+// 장착한 펫의 지원 효과를 적용. silent=true 면 연출/로그 없이 수치만 반영(스킵 모드용). 적용했으면 true.
+function petSupport(silent) {
+  const id = S.hero.pets?.equipped, p = id && PET_BY_ID[id], def = id && PET_SUPPORT[id];
+  if (!p || !def) return false;
+  const lv = S.hero.pets.owned[id]?.level || 1, st = stats(), mon = S.battle.monster, h = S.hero;
+  const dmg = def.dmg ? Math.floor(st.atk * def.dmg(lv)) : 0;
+  const heal = def.healMax ? Math.floor(st.maxHp * def.healMax(lv)) : def.healDmg ? Math.floor(dmg * def.healDmg) : 0;
+  if (dmg) mon.hp = Math.max(0, mon.hp - dmg);
+  if (heal) h.hp = Math.min(st.maxHp, h.hp + heal);
+  if (def.defCut) mon.def = Math.floor(mon.def * (1 - def.defCut));
+  if (silent) return true;
+  if (dmg) floatText(`-${fmt(dmg)}`, false, def.color);
+  if (heal) floatText(`+${fmt(heal)} HP`, true, '#2ed573');
+  log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! ${def.msg(dmg, heal)}`, def.cls);
+  FX.shake('battle-viewport', 140, 5);
+  return true;
+}
 function afterPlayer() {
   refreshAll();
   if (S.battle.monster.hp <= 0) return victory();
 
-  // 🐾 펫 지원 스킬 발동 (3턴마다)
-  if (S.hero.pets?.equipped && S.battle.turn % 3 === 0) {
-    const petId = S.hero.pets.equipped;
-    const p = PET_BY_ID[petId];
-    if (p) {
-      const lv = S.hero.pets.owned[petId]?.level || 1;
-      const st = stats();
-      let dmg = 0, heal = 0;
-      if (petId === 'slime') {
-        heal = Math.floor(st.maxHp * (0.12 + lv * 0.005));
-        S.hero.hp = Math.min(st.maxHp, S.hero.hp + heal);
-        floatText(`+${fmt(heal)} HP`, true, '#2ed573');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! HP +${fmt(heal)} 회복!`, 'win');
-      } else if (petId === 'bat') {
-        dmg = Math.floor(st.atk * (1.2 + lv * 0.08));
-        heal = Math.floor(dmg * 0.4);
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        S.hero.hp = Math.min(st.maxHp, S.hero.hp + heal);
-        floatText(`-${fmt(dmg)}`, false, '#a55eea'); floatText(`+${fmt(heal)} HP`, true, '#2ed573');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! ${fmt(dmg)} 피해 및 +${fmt(heal)} 흡혈!`, 'skill');
-      } else if (petId === 'baby_dragon') {
-        dmg = Math.floor(st.atk * (2.2 + lv * 0.12));
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        floatText(`-${fmt(dmg)}`, false, '#ff7924');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! 화염구로 ${fmt(dmg)} 폭발 피해!`, 'skill');
-      } else if (petId === 'frost_wolf') {
-        dmg = Math.floor(st.atk * (1.8 + lv * 0.10));
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        S.battle.monster.def = Math.floor(S.battle.monster.def * 0.75);
-        floatText(`-${fmt(dmg)}`, false, '#00cec9');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! ${fmt(dmg)} 피해 및 적 방어력 25% 영구 감소!`, 'skill');
-      } else if (petId === 'thunder_beast') {
-        dmg = Math.floor(st.atk * (2.8 + lv * 0.15));
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        floatText(`-${fmt(dmg)}`, false, '#f5b942');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! 벼락 강타로 ${fmt(dmg)} 감전 피해!`, 'skill');
-      } else if (petId === 'forest_fairy') {
-        heal = Math.floor(st.maxHp * (0.20 + lv * 0.01));
-        S.hero.hp = Math.min(st.maxHp, S.hero.hp + heal);
-        floatText(`+${fmt(heal)} HP`, true, '#2ed573');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! 생명의 결계로 HP +${fmt(heal)} 회복!`, 'win');
-      } else if (petId === 'phoenix') {
-        dmg = Math.floor(st.atk * (3.5 + lv * 0.20));
-        heal = Math.floor(st.maxHp * 0.25);
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        S.hero.hp = Math.min(st.maxHp, S.hero.hp + heal);
-        floatText(`-${fmt(dmg)}`, false, '#ff5e97'); floatText(`+${fmt(heal)} HP`, true, '#2ed573');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! 성광의 업화로 ${fmt(dmg)} 피해 및 HP +${fmt(heal)} 회복!`, 'win');
-      } else if (petId === 'cerberus') {
-        dmg = Math.floor(st.atk * (4.2 + lv * 0.25));
-        S.battle.monster.hp = Math.max(0, S.battle.monster.hp - dmg);
-        floatText(`-${fmt(dmg)}`, false, '#ff4757');
-        log(`🐾 [펫 지원] ${p.icon} ${p.name}의 '${p.role}'! 방어 관통 3연격으로 ${fmt(dmg)} 암흑 참격 피해!`, 'crit');
-      }
-      FX.shake('battle-viewport', 140, 5);
-      if (S.battle.monster.hp <= 0) return victory();
-    }
+  if (S.hero.pets?.equipped && S.battle.turn % 3 === 0 && petSupport(false)) {
+    refreshAll();
+    if (S.battle.monster.hp <= 0) return victory();
   }
-
-  setTimeout(enemyTurn, actionDelay());
+  later(enemyTurn, actionDelay());
 }
 async function enemyTurn() {
   if (!S.battle.inBattle) return;
+  const bid = battleSeq;
   const mon = S.battle.monster, h = S.hero, breath = mon.isBoss && S.battle.turn % 3 === 0;
   const ev = PD.emit('enemyAttack', { monster: mon, breath, dmg: heroTaken(breath ? Math.floor(mon.atk * 1.65) : mon.atk) }), dmg = ev.dmg;
   lunge(false);
   if (breath) { fxBossBreath(); FX.shake('battle-viewport', 220, 9); await FX.hitStop(hs(80)); log(`🔥 [${mon.name}]의 화염 브레스! ${fmt(dmg)}의 치명적 피해!`, 'enemy'); }
   else { fxEnemyHit(); log(`👹 [${mon.name}]의 반격! ${fmt(dmg)} 피해! (방어 경감 적용)`, 'enemy'); }
+  if (bid !== battleSeq) return;
   h.hp = Math.max(0, h.hp - dmg);
   floatText(`-${fmt(dmg)}`, true, '#ff4757');
   if (h.hp <= 0) { refreshAll(); return defeat(); }
@@ -2694,21 +2756,24 @@ function skipResolve() {
   if (!S.battle.inBattle || !speedUnlocked() || S.battleSpeed !== 'skip') return;
   clearAuto();
   const h = S.hero, mon = S.battle.monster; let rounds = 0;
-  while (rounds < 250 && mon.hp > 0 && h.hp > 0) {
+  const raid = !!S.battle.isRaid;
+  while (rounds < 250 && mon.hp > 0 && h.hp > 0 && (!raid || S.battle.raidTurnsLeft > 0)) {
     rounds++; const st = stats();
     if (h.hp <= st.maxHp * 0.45 && h.potionCooldown <= 0) { h.hp += Math.min(st.maxHp - h.hp, Math.floor(st.maxHp * st.potion)); h.potionCooldown = 3; }
     else { const sk = h.equippedSkills.map(ownedSkill).find(s => s && s.cooldown === 0); mon.hp = Math.max(0, mon.hp - (sk ? castSkill(sk, mon) : basicAttack(mon)).dmg); }
     if (mon.hp <= 0) break;
+    if (h.pets?.equipped && S.battle.turn % 3 === 0) { petSupport(true); if (mon.hp <= 0) break; }
     const breath = mon.isBoss && S.battle.turn % 3 === 0;
     h.hp = Math.max(0, h.hp - heroTaken(breath ? Math.floor(mon.atk * 1.65) : mon.atk));
     if (h.hp <= 0) break;
-    S.battle.turn++; if (h.potionCooldown > 0) h.potionCooldown--; h.skills.forEach(s => { if (s.cooldown > 0) s.cooldown--; });
+    S.battle.turn++; if (h.potionCooldown > 0) h.potionCooldown--; h.skills.forEach(s => { if (s.cooldown > 0) s.cooldown--; }); if (raid) S.battle.raidTurnsLeft--;
   }
   log(`⚡ [스킵 결착] ${rounds}턴 만에 고속 전투 종료!`, 'info');
   refreshAll();
-  mon.hp <= 0 ? victory() : defeat();
+  if (mon.hp <= 0) victory(); else if (raid && h.hp > 0) raidTimeOver(); else defeat();
 }
 function raidTimeOver() {
+  if (!S.battle.inBattle) return;
   clearAuto(); S.battle.inBattle = false;
   if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none';
   const mon = S.battle.monster, h = S.hero;
@@ -2717,7 +2782,7 @@ function raidTimeOver() {
   h.gold += compGold;
   log(`⏳ [차원 붕괴] 15턴이 초과되어 차원의 문이 닫혔습니다! (입힌 피해: ${dmgPct}%)`, 'enemy');
   save(); refreshAll();
-  setTimeout(() => showResult(false, `⏳ 15턴 시간 초과 (차원 붕괴)`, `
+  later(() => showResult(false, `⏳ 15턴 시간 초과 (차원 붕괴)`, `
     <div style="color:var(--red);font-weight:bold;font-size:1rem">15턴 내에 보스를 처치하지 못했습니다!</div>
     <div style="font-size:.84rem;margin:6px 0">보스에게 총 <b style="color:var(--gold)">${dmgPct}%</b>의 피해를 입혔습니다.</div>
     <div style="font-size:.82rem;color:var(--cyan)">전투 기여 참가 보상: +${fmt(compGold)}G 지급</div>
@@ -2726,6 +2791,7 @@ function raidTimeOver() {
 }
 
 function victory() {
+  if (!S.battle.inBattle) return;
   clearAuto(); S.battle.inBattle = false;
   const mon = S.battle.monster, h = S.hero, st = stats(), cleared = S.stage, lines = [];
   fxVictory(mon.isBoss); if (mon.isBoss) FX.shake('battle-viewport', 300, 10);
@@ -2744,16 +2810,16 @@ function victory() {
     S.achievements.kills = (S.achievements.kills || 0) + 1;
     save(); refreshAll();
     lines.forEach(l => log(l, 'win'));
-    setTimeout(() => showResult(true, `👑 차원 레이드 토벌 대성공!`, `<div style="color:var(--gold);font-weight:bold;font-size:1.1rem">[${mon.name}] 처치 완료!</div>${lines.map(l => `<div style="font-size:.85rem;color:var(--text);margin-top:4px">${l}</div>`).join('')}`), 800);
+    later(() => showResult(true, `👑 차원 레이드 토벌 대성공!`, `<div style="color:var(--gold);font-weight:bold;font-size:1.1rem">[${mon.name}] 처치 완료!</div>${lines.map(l => `<div style="font-size:.85rem;color:var(--text);margin-top:4px">${l}</div>`).join('')}`), 800);
     return;
   }
   S.achievements.kills = (S.achievements.kills || 0) + 1;
   let gold = Math.floor(mon.gold * (1 + st.goldPct / 100)); const rep = S.repeatStage && S.stage < S.maxStage;
-  if (rep) gold = Math.max(1, Math.floor(gold * 0.35));
-  h.gold += gold; lines.push(`🪙 골드 +${fmt(gold)} G${rep ? ' (반복 35%)' : ''}`);
+  if (rep) gold = Math.max(1, Math.floor(gold * 0.8));
+  h.gold += gold; lines.push(`🪙 골드 +${fmt(gold)} G${rep ? ' (반복 80%)' : ''}`);
   if (mon.isBoss) {
-    const k = mon.is50 ? 6 : 3; h.keys += k; lines.push(`🗝️ 소환 열쇠 +${k}개 획득!`);
-    lines.push(`💎 룬 획득: ${grantRunes(mon.is50 ? 5 : 2 + Math.floor(cleared / 25))}`);
+    const k = mon.is50 ? 8 : 4; h.keys += k; lines.push(`🗝️ 소환 열쇠 +${k}개 획득!`);
+    lines.push(`💎 룬 획득: ${grantRunes(mon.is50 ? 6 : 3 + Math.floor(cleared / 20))}`);
     withHpDelta(() => {
       const atk = Math.min(20 + Math.floor(cleared * 2.5), 120 + cleared * 8);
       if (atk > h.bossSword.attackBonus) { h.bossSword = { name: mon.bossWeapon, grade: '보스 전용', attackBonus: atk, sellPrice: 150 }; lines.push(`🗡️ 보스 무기: [${mon.bossWeapon}] (공+${atk})`); }
@@ -2763,25 +2829,26 @@ function victory() {
     if (cleared === 10 && S.maxStage <= 10) lines.push('🎉 Stage 10 보스 격파! 전투 2배속 및 ⚡ 스킵 모드가 해금되었습니다!');
     if (mon.is50) lines.push(`🔥 ${cleared}층 심연 대군주 격파! 다음 구역은 한층 더 강력해집니다!`);
   } else if (mon.isElite) {
-    if (Math.random() < Math.min(1, 0.90 + st.dropRate / 100 * 0.25)) { h.keys += 2; lines.push('🗝️ 소환 열쇠 +2개 획득!'); }
-    lines.push(`💎 일반 룬 드랍: ${grantRunes(1 + Math.floor(cleared / 25))} (룬 합성소에서 승급 가능!)`);
-  } else if (Math.random() < Math.min(0.95, 0.55 + st.dropRate / 100 * 0.35)) { h.keys += 1; lines.push('🗝️ 소환 열쇠 +1개 드랍!'); }
+    if (Math.random() < Math.min(1, 0.95 + st.dropRate / 100 * 0.25)) { h.keys += 2; lines.push('🗝️ 소환 열쇠 +2개 획득!'); }
+    lines.push(`💎 일반 룬 드랍: ${grantRunes(1 + Math.floor(cleared / 20))} (룬 합성소에서 승급 가능!)`);
+  } else if (Math.random() < Math.min(0.98, 0.65 + st.dropRate / 100 * 0.35)) { h.keys += 1; lines.push('🗝️ 소환 열쇠 +1개 드랍!'); }
   PD.emit('victory', { monster: mon, stage: cleared, lines });
   S.stage = cleared + 1;
   if (S.stage > S.maxStage) { S.maxStage = S.stage; S.repeatStage = null; }
   save();
   lines.forEach(l => log(l, 'win'));
   refreshAll();
-  setTimeout(() => showResult(true, `🏆 Stage ${cleared} 클리어!`, `<div style="color:var(--green);font-weight:bold;font-size:1rem">[${mon.name}] 토벌 성공!</div>${lines.map(l => `<div style="font-size:.82rem;color:${l.startsWith('🪙') ? 'var(--gold)' : l.startsWith('🗝️') ? '#70a1ff' : 'var(--text)'}">${l}</div>`).join('')}`, cleared), S.battleSpeed === 'skip' ? 350 : 900);
+  later(() => showResult(true, `🏆 Stage ${cleared} 클리어!`, `<div style="color:var(--green);font-weight:bold;font-size:1rem">[${mon.name}] 토벌 성공!</div>${lines.map(l => `<div style="font-size:.82rem;color:${l.startsWith('🪙') ? 'var(--gold)' : l.startsWith('🗝️') ? '#70a1ff' : 'var(--text)'}">${l}</div>`).join('')}`, cleared), S.battleSpeed === 'skip' ? 350 : 900);
 }
 function defeat() {
+  if (!S.battle.inBattle) return;
   clearAuto(); S.battle.inBattle = false;
   if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none';
   const h = S.hero, loss = Math.floor(h.gold * 0.08); h.gold -= loss; h.hp = stats().maxHp;
   PD.emit('defeat', { monster: S.battle.monster, stage: S.stage });
   heroBattle.play('death', { hold: true }); fxHeroDeath(); save();
   log('💀 모험가가 쓰러졌습니다...', 'enemy');
-  setTimeout(() => showResult(false, '💀 전투 패배...', `<div style="color:var(--red);font-weight:bold;font-size:1rem">모험가가 쓰러졌습니다!</div><div style="font-size:.82rem">마을로 긴급 후송되어 HP가 모두 회복되었습니다.</div><div style="font-size:.82rem;color:var(--gold)">(소지 골드 일부 손실: -${fmt(loss)} G)</div><div style="font-size:.78rem;color:var(--sub)">영웅 훈련소 · 상자 소환 · 룬 합성 · 초월 강화로 전력을 키우세요!</div>`), 1100);
+  later(() => showResult(false, '💀 전투 패배...', `<div style="color:var(--red);font-weight:bold;font-size:1rem">모험가가 쓰러졌습니다!</div><div style="font-size:.82rem">마을로 긴급 후송되어 HP가 모두 회복되었습니다.</div><div style="font-size:.82rem;color:var(--gold)">(소지 골드 일부 손실: -${fmt(loss)} G)</div><div style="font-size:.78rem;color:var(--sub)">영웅 훈련소 · 상자 소환 · 룬 합성 · 초월 강화로 전력을 키우세요!</div>`), 1100);
 }
 function showResult(win, title, html, clearedStage) {
   if (curScene() !== 'scene-battle') return;
@@ -2809,9 +2876,9 @@ function showResult(win, title, html, clearedStage) {
   }
   openModal('result', 540, title, `<div class="reveal" style="min-height:160px">${html}</div><div class="res-btns" style="margin-top:12px">${btns}</div>`, { noX: true });
 }
-function resultNext() { closeModal('result'); startBattle(); }
-function resultRepeat(stageNum) { closeModal('result'); setStage(stageNum); startBattle(); }
-function resultHome() { closeModal('result'); FX.clearAll(); switchScene('scene-menu'); }
+function resultNext() { closeModal('result'); if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none'; startBattle(); }
+function resultRepeat(stageNum) { closeModal('result'); if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none'; setStage(stageNum); startBattle(); }
+function resultHome() { closeModal('result'); FX.clearAll(); if ($('raid-timer-banner')) $('raid-timer-banner').style.display = 'none'; if (heroBattle) heroBattle.idle(); switchScene('scene-menu'); }
 
 // ===== 입력 =====
 document.addEventListener('click', (e) => {
@@ -2830,11 +2897,12 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   const tg = e.target.tagName;
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tg)) { if (e.key === 'Escape') e.target.blur(); if (e.key === 'Enter' && e.target.id === 'stage-search') stageSearchGo(); return; }
+  if (e.repeat && (e.key === 'Enter' || e.key === ' ')) return;
   if (isOpen('result')) { if (e.key === 'Enter') { e.preventDefault(); UI.resultWin ? resultNext() : resultHome(); } else if ((e.key === 'r' || e.key === 'R') && UI.resultWin && UI.clearedStage) { e.preventDefault(); resultRepeat(UI.clearedStage); } else if (e.key === 'Escape') { e.preventDefault(); resultHome(); } return; }
   if (modalStack.length) { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeModal(modalStack[modalStack.length - 1]); } return; }
   const sc = curScene();
-  if (sc === 'scene-title' && e.key === 'Enter') switchScene('scene-menu');
-  else if (sc === 'scene-menu') { if (e.key === 'Enter') startBattle(); if (e.key === 'Escape') switchScene('scene-title'); }
+  if (sc === 'scene-title' && e.key === 'Enter') { e.preventDefault(); switchScene('scene-menu'); }
+  else if (sc === 'scene-menu') { if (e.key === 'Enter') { e.preventDefault(); startBattle(); } if (e.key === 'Escape') { e.preventDefault(); switchScene('scene-title'); } }
   else if (sc === 'scene-battle') { if (e.key === 'Escape') retreat(); if ((e.key === 'Enter' || e.key === ' ') && S.battleSpeed === 'skip') { e.preventDefault(); skipResolve(); } }
   else if ((sc === 'scene-forge' || sc === 'scene-character') && e.key === 'Escape' && !UI.forgeBusy) switchScene('scene-menu');
 });
@@ -2853,7 +2921,6 @@ function init() {
   ];
   for (const s of steps) { try { s(); } catch (err) { console.error(err); } }
 }
-document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
 
 // ----- 월드 선택 (월드가 2개 이상일 때만 표시) -----
 function renderWorldRow() {
@@ -2965,3 +3032,6 @@ PD.on('ready', () => {
   el.textContent = '🧩 모드: ' + PD.mods.map(m => `${m.name || m.id}${m.version ? ' v' + m.version : ''}`).join(', ');
   document.querySelector('.title-actions')?.appendChild(el);
 });
+
+// 모든 선언(PD 포함)이 끝난 뒤 시작
+document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
