@@ -1273,10 +1273,10 @@ class HeroView {
     if (f !== before) this.draw();
   }
   draw() {
-    const w = HERO_ATLAS.cellW || 87, h = HERO_ATLAS.cellH || 93;
     if (!heroReady) {
-      this.ctx.clearRect(0, 0, w, h);
-      drawFallbackHero(this.ctx, w, h, this.dir, this.anim, this.t);
+      const cw = HERO_ATLAS.cellW || 87, ch = HERO_ATLAS.cellH || 93;
+      this.ctx.clearRect(0, 0, cw, ch);
+      drawFallbackHero(this.ctx, cw, ch, this.dir, this.anim, this.t);
       return;
     }
     const fr = this.frames(), n = fr.length;
