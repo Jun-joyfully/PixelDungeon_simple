@@ -39,3 +39,10 @@
 
 * **저장 방식:** 게임 진행 데이터는 현재 사용 중인 브라우저(로컬 스토리지)에 자동 저장됩니다. 시크릿 모드를 사용하거나 브라우저 캐시/쿠키를 삭제하면 데이터가 초기화될 수 있습니다.
 * **테스트 버전:** 밸런스 조정 및 기능 추가가 수시로 이루어질 수 있습니다. 버그 제보나 피드백은 언제든 환영합니다!
+
+---
+
+## 📦 사용한 오픈소스
+
+* **[ZzFX](https://github.com/KilledByAPixel/ZzFX)** (v1.4.0) - 코드로 만드는 8비트 효과음 · MIT License · Copyright (c) 2019 Frank Force · `vendor/zzfx/`
+* **[갈무리 (Galmuri)](https://github.com/quiple/galmuri)** - 픽셀 한글 폰트 · SIL Open Font License 1.1 · jsDelivr CDN으로 로드

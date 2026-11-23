@@ -1502,6 +1502,7 @@ const sp = (name, o, t) => FX.spawn(BFX, name, o, t);
 // 평타: 시트의 초승달 베기 + 별 폭발. 영웅 이상은 엇갈린 2연격
 function fxHeroSlash(grade, crit) {
   const { h, m } = battleAnchors(), pal = gradePal(grade), r = rankOf(grade), T = 0.16;
+  sfx(crit ? 'crit' : 'hit', 120); // 검기가 닿는 순간
   // 검기: 주인공 앞에서 몬스터까지 날아감
   const from = { x: h.x + 34, y: h.cy - 4 }, to = { x: m.x - 8, y: m.cy };
   sp('swordWave', { palette: pal, radius: 16 + r * 2, light: 0.9 }, { cut: T, move: (t) => { const k = Math.min(1, t / T); return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k }; } });
@@ -1513,25 +1514,27 @@ function fxHeroSlash(grade, crit) {
 }
 // 몬스터 공격: 할퀴기 + 붉은 별, 보스는 화염 숨결
 function fxEnemyHit() {
-  const { h } = battleAnchors();
+  const { h } = battleAnchors(); sfx('enemyHit');
   sp('clawSwipe', { x: h.x + 46, y: h.y, flip: true, light: 0.7 }, { speed: 1.2 });
   sp('starPop', { x: h.x + 4, y: h.cy, size: 12, palette: PAL.fire }, { delay: 0.07 });
 }
 function fxBossBreath() {
+  sfx('breath');
   const { h, m, mh } = battleAnchors(), mx = m.x - mh * 0.44, my = m.y - mh * 0.28, reach = mx - h.x;
   // fire-breath는 오른쪽으로 ~150px, 거리가 멀면 숨결을 이어 붙임
   const n = Math.max(1, Math.ceil(reach / 140));
   for (let i = 0; i < n; i++) sp('fireBreath', { x: mx - i * 140, y: my + (h.cy - my) * (i / n), flip: true, light: 0.7, angle: -0.12 }, { cut: 0.7, delay: i * 0.06 });
   sp('fireRing', { x: h.x, y: h.y, light: 0.6 }, { speed: 2.2, cut: 0.5, delay: 0.25 });
 }
-function fxPotion() { const { h } = battleAnchors(); sp('heal', { x: h.x, y: h.y, light: 0.8 }, { speed: 1.2 }); }
+function fxPotion() { sfx('heal'); const { h } = battleAnchors(); sp('heal', { x: h.x, y: h.y, light: 0.8 }, { speed: 1.2 }); }
 function fxVictory(isBoss) {
+  sfx(isBoss ? 'bossDown' : 'coin');
   const { m } = battleAnchors();
   if (isBoss) sp('smallExplosion', { x: m.x, y: m.y, light: 0.8 }, { speed: 1.6, cut: 2.2 });
   else sp('poof', { x: m.x, y: m.y, light: 0.6 }, { speed: 1.1 });
   sp('coinDrop', { x: m.x, y: m.y, coins: isBoss ? 14 : 7 }, { speed: 1.3, delay: 0.15 });
 }
-function fxHeroDeath() { const { h } = battleAnchors(); sp('dustKick', { x: h.x - 10, y: h.y, size: 10, count: 4 }, { delay: 0.35 }); }
+function fxHeroDeath() { sfx('death'); const { h } = battleAnchors(); sp('dustKick', { x: h.x - 10, y: h.y, size: 10, count: 4 }, { delay: 0.35 }); }
 function fxRunIn() { const { h } = battleAnchors(); sp('dustKick', { x: h.x - 30, y: h.y, flip: true, size: 6, count: 3 }); }
 
 // ===== 스킬 28종: 이름의 표현에 맞춘 연출 =====
@@ -1572,6 +1575,7 @@ const SKILL_FX = {
 };
 function fxSkill(sk, crit) {
   const { h, m } = battleAnchors(), P = skillPal(sk.name, sk.grade);
+  sfx('skill'); if (crit) sfx('crit', 200);
   sp('skillSigil', { x: h.x, y: h.y, palette: P, radius: 26 }, { speed: 1.4 });
   (SKILL_FX[sk.name] || ((h, m, P) => sp('crescentSlash', { x: m.x - 34, y: m.cy + 30, palette: P })))(h, m, P);
   if (crit) sp('starPop', { x: m.x, y: m.cy, size: 24, palette: PAL.legendary }, { delay: 0.2 });
@@ -1580,14 +1584,16 @@ function fxSkill(sk, crit) {
 // ===== 대장간 · 상자 =====
 const FFX = 'forge-fx-canvas';
 function forgeAnchor() { return FX.at(FFX, document.getElementById('forge-item-canvas'), 0.5, 0.6); }
-function fxForgeTap() { const a = forgeAnchor(); FX.spawn(FFX, 'anvilSparks', { x: a.x, y: a.y, count: 18 }, { speed: 1.2 }); }
+function fxForgeTap() { sfx('tap'); const a = forgeAnchor(); FX.spawn(FFX, 'anvilSparks', { x: a.x, y: a.y, count: 18 }, { speed: 1.2 }); }
 function fxForgeSuccess(auto) {
+  sfx('success');
   const a = forgeAnchor();
   FX.spawn(FFX, 'heal', { x: a.x, y: a.y + 30, light: 0.8 }, { speed: 1.4 });
   if (!auto) FX.spawn(FFX, 'levelUp', { x: a.x, y: a.y + 65, text: 'SUCCESS!', light: 0.7 }, { speed: 1.5, cut: 1.6 });
 }
-function fxForgeFail(auto) { const a = forgeAnchor(); FX.spawn(FFX, 'poof', { x: a.x, y: a.y + 20 }, { speed: auto ? 1.6 : 1.1 }); }
+function fxForgeFail(auto) { sfx('fail'); const a = forgeAnchor(); FX.spawn(FFX, 'poof', { x: a.x, y: a.y + 20 }, { speed: auto ? 1.6 : 1.1 }); }
 function fxChest(canvasId, grade, sold, multi) {
+  sfx(rankOf(grade) >= 3 ? 'chestRare' : 'chest');
   const s = FX.surface(canvasId); if (!s) return;
   const x = s.W / 2, y = s.H * (multi ? 0.8 : 0.78), P = gradePal(grade);
   FX.spawn(canvasId, 'lootBeam', { x, y, palette: P, light: 0.8 }, { speed: 1.2, cut: 1.5 });
@@ -2519,6 +2525,7 @@ async function forgeOnce() {
 async function forgeRankUp(kind) {
   if (doRankUp(kind)) {
     setBanner(`👑 축하합니다! ${kind === 'sword' ? '검' : '방어구'}이 상위 등급으로 무료 승급되었습니다!`, 'success');
+    sfx('fanfare');
     ticker(`<span style="color:var(--gold)">👑 [무료 승급 성공]</span> ${S.hero[kind].grade} 등급 [${S.hero[kind].name}] 탄생!`);
     fxForgeSuccess(true);
     refreshAll();
@@ -2527,6 +2534,7 @@ async function forgeRankUp(kind) {
 function forgeRainbow(kind) {
   if (doInfuseRainbow(kind)) {
     setBanner(`🌟 축하합니다! 큰 무지개별 초월 각성이 완성되었습니다!`, 'success');
+    sfx('fanfare');
     ticker(`<span style="color:var(--pink)">🌟 [무지개별 완성]</span> 신화 장비의 궁극 각성이 활성화되었습니다!`);
     fxForgeSuccess(true);
     refreshAll();
@@ -3017,6 +3025,9 @@ const PD = window.PD = {
   closeModal: (id) => closeModal('mod-' + id),
   // 이펙트 바로 띄우기(전투 캔버스): PD.fx('starPop', {x,y,...}, {speed, delay, cut})
   fx: (name, o, t) => sp(name, o, t),
+  // 효과음: PD.sfx('coin') 또는 PD.sfx([zzfx 인자 배열]) / PD.addSfx(이름, [zzfx 인자 배열])
+  sfx: (n, d) => Array.isArray(n) ? (typeof zzfx === 'function' && sfxState.vol && zzfx((n[0] ?? 1) * sfxState.vol, ...n.slice(1))) : sfx(n, d),
+  addSfx: (name, params) => { SFX[name] = params; },
   anchors: () => battleAnchors(),
 };
 PD.on('ready', () => {
